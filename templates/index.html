@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal Document Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .language-selector {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .language-selector:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        .tab-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+        }
+        .tab-button:hover, .tab-button.active {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header with Language Toggle -->
+        <div class="flex justify-between items-center mb-8">
+            <div class="text-center flex-1">
+                <h1 class="text-4xl font-bold text-white mb-2">
+                    <i class="fas fa-balance-scale mr-3"></i>
+                    <span data-lang="title">Legal Document Analyzer</span>
+                </h1>
+                <p class="text-white/80 text-lg" data-lang="subtitle">AI-Powered Document Analysis & Translation</p>
+            </div>
+            <div class="ml-4">
+                <button id="languageToggle" class="tab-button">
+                    <i class="fas fa-language mr-2"></i>
+                    <span id="languageText">தமிழ்</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="max-w-6xl mx-auto">
+            <!-- Upload Section -->
+            <div class="glass-effect rounded-xl p-6 mb-6">
+                <h2 class="text-2xl font-semibold text-white mb-4">
+                    <i class="fas fa-upload mr-2"></i>Upload Document
+                </h2>
+                
+                <form id="uploadForm" class="space-y-4">
+                    <div>
+                        <label class="block text-white/90 mb-2">Choose File</label>
+                        <input type="file" id="fileInput" accept=".pdf,.txt,.doc,.docx" 
+                               class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50">
+                    </div>
+                    
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-white/90 mb-2">Translate To (Optional)</label>
+                            <select id="translateSelect" class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white">
+                                <option value="">No Translation</option>
+                                <option value="Spanish">Spanish</option>
+                                <option value="French">French</option>
+                                <option value="German">German</option>
+                                <option value="Chinese">Chinese</option>
+                                <option value="Japanese">Japanese</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-white/90 mb-2">Text-to-Speech Voice</label>
+                            <select id="voiceSelect" class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white">
+                                <option value="Kore">Korean (Kore)</option>
+                                <option value="Charon">Charon</option>
+                                <option value="Fenrir">Fenrir</option>
+                                <option value="Kore">Kore</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <input type="checkbox" id="ttsCheckbox" class="mr-2">
+                        <label class="text-white/90">Enable Text-to-Speech</label>
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-white/20 hover:bg-white/30 text-white font-semibold py-3 px-4 rounded-lg transition duration-300">
+                        <i class="fas fa-analyze mr-2"></i>Analyze Document
+                    </button>
+                </form>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingSection" class="hidden text-center py-8">
+                <div class="loading-spinner mx-auto mb-4"></div>
+                <p class="text-white text-lg">Analyzing your document...</p>
+            </div>
+
+            <!-- Results Section -->
+            <div id="resultsSection" class="hidden">
+                <!-- Document Type -->
+                <div class="glass-effect rounded-xl p-6 mb-6">
+                    <h3 class="text-xl font-semibold text-white mb-3">
+                        <i class="fas fa-file-alt mr-2"></i>Document Type
+                    </h3>
+                    <div id="docType" class="text-white/90 text-lg"></div>
+                    <div id="docSubtype" class="text-white/70 text-sm mt-1"></div>
+                    <div id="confidence" class="text-white/70 text-sm mt-1"></div>
+                </div>
+
+                <!-- Entities -->
+                <div class="glass-effect rounded-xl p-6 mb-6">
+                    <h3 class="text-xl font-semibold text-white mb-3">
+                        <i class="fas fa-tags mr-2"></i>Extracted Entities
+                    </h3>
+                    <div id="entities" class="text-white/90"></div>
+                </div>
+
+                <!-- Clauses -->
+                <div class="glass-effect rounded-xl p-6 mb-6">
+                    <h3 class="text-xl font-semibold text-white mb-3">
+                        <i class="fas fa-list-ol mr-2"></i>Document Clauses
+                    </h3>
+                    <div id="clauses" class="text-white/90 space-y-4"></div>
+                </div>
+
+                <!-- Summary -->
+                <div class="glass-effect rounded-xl p-6 mb-6">
+                    <h3 class="text-xl font-semibold text-white mb-3">
+                        <i class="fas fa-clipboard-list mr-2"></i>Summary
+                    </h3>
+                    <p id="summary" class="text-white/90"></p>
+                </div>
+
+                <!-- Key Points -->
+                <div class="glass-effect rounded-xl p-6 mb-6">
+                    <h3 class="text-xl font-semibold text-white mb-3">
+                        <i class="fas fa-key mr-2"></i>Key Points
+                    </h3>
+                    <ul id="keyPoints" class="text-white/90 space-y-2"></ul>
+                </div>
+
+                <!-- Risks -->
+                <div class="glass-effect rounded-xl p-6 mb-6">
+                    <h3 class="text-xl font-semibold text-white mb-3">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>Risks
+                    </h3>
+                    <ul id="risks" class="text-white/90 space-y-2"></ul>
+                </div>
+
+                <!-- Action Items -->
+                <div class="glass-effect rounded-xl p-6 mb-6">
+                    <h3 class="text-xl font-semibold text-white mb-3">
+                        <i class="fas fa-tasks mr-2"></i>Action Items
+                    </h3>
+                    <ul id="actionItems" class="text-white/90 space-y-2"></ul>
+                </div>
+
+                <!-- Translation -->
+                <div id="translationSection" class="glass-effect rounded-xl p-6 mb-6 hidden">
+                    <h3 class="text-xl font-semibold text-white mb-3">
+                        <i class="fas fa-language mr-2"></i>Translation
+                    </h3>
+                    <p id="translation" class="text-white/90"></p>
+                </div>
+
+                <!-- Audio Players -->
+                <div id="audioSection" class="glass-effect rounded-xl p-6 mb-6 hidden">
+                    <h3 class="text-xl font-semibold text-white mb-3">
+                        <i class="fas fa-volume-up mr-2"></i>Audio Narration
+                    </h3>
+                    <div id="audioPlayers" class="space-y-4"></div>
+                </div>
+            </div>
+
+            <!-- Error Section -->
+            <div id="errorSection" class="hidden">
+                <div class="bg-red-500/20 border border-red-500/50 rounded-xl p-6">
+                    <h3 class="text-xl font-semibold text-red-200 mb-3">
+                        <i class="fas fa-exclamation-circle mr-2"></i>Error
+                    </h3>
+                    <p id="errorMessage" class="text-red-200"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
