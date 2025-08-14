@@ -25,14 +25,15 @@ class DocumentProcessor:
         filename: str,
         language: str = "english",
         generate_tts: bool = False,
-        tts_voice: str = "kore"
+        tts_voice: str = "kore",
+        pre_extracted_text: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Process document and return comprehensive analysis with chunking."""
         try:
             logger.info(f"Starting document processing for {filename}")
             
-            # Extract text based on file type
-            text = await DocumentProcessor._extract_text(file_bytes, filename)
+            # Extract text based on file type (skip if provided)
+            text = pre_extracted_text if (pre_extracted_text is not None and pre_extracted_text.strip()) else await DocumentProcessor._extract_text(file_bytes, filename)
             
             if not text or not text.strip():
                 return {
@@ -53,7 +54,7 @@ class DocumentProcessor:
             logger.info(f"Extracted {len(clauses)} clauses")
             
             # Classify document type (prefer Granite/keywords to avoid Gemini limits)
-            await asyncio.sleep(DocumentProcessor.PROCESSING_DELAY)
+            # Removed PROCESSING_DELAY
             try:
                 granite_label = await granite_simple_doc_type(text)
                 doc_classification = {
@@ -75,7 +76,6 @@ class DocumentProcessor:
             logger.info(f"Extracted entities for {len(clause_entities)} clauses")
             
             # Simplify clauses with prioritization: first N clauses + any clause under 160 chars (fast) 
-            await asyncio.sleep(DocumentProcessor.PROCESSING_DELAY)
             priority: List[Dict[str, Any]] = []
             fallback_tail: List[Dict[str, Any]] = []
             for idx, c in enumerate(clauses):

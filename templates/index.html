@@ -7,224 +7,566 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .light-gradient-bg {
+            /* background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #dbeafe 100%); */
         }
+        .dark-gradient-bg {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+        }
+        
         .glass-effect {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(2, 6, 23, 0.08);
+            box-shadow: 0 8px 32px rgba(2, 6, 23, 0.08);
         }
+        
+        .glass-effect-light {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(2, 6, 23, 0.06);
+        }
+        
         .loading-spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
+            border: 4px solid rgba(148, 163, 184, 0.2);
+            border-top: 4px solid #3b82f6;
             border-radius: 50%;
             width: 40px;
             height: 40px;
             animation: spin 2s linear infinite;
         }
+        
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
         .fade-in {
             animation: fadeIn 0.5s ease-in;
         }
+        
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        
+        /* Language Selector Styles */
         .language-selector {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(16px);
+            border: 2px solid rgba(59, 130, 246, 0.2);
+            border-radius: 0.75rem;
+            padding: 0.75rem;
+            box-shadow: 0 8px 24px rgba(2, 6, 23, 0.08);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .language-selector select {
+            background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+            border: 2px solid #cbd5e1;
+            color: #0f172a;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            min-width: 120px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .language-selector select:hover {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-color: #93c5fd;
+            transform: translateY(-1px);
+        }
+        
+        .language-selector select:focus {
+            outline: none;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+        
+        .language-selector label {
+            color: #334155;
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        
+        /* Chat Interface Styles */
+        .chat-container {
+            height: calc(100vh - 2rem);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            scroll-behavior: smooth;
+        }
+        
+        .message {
+            margin-bottom: 1rem;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: messageSlide 0.3s ease-out forwards;
+        }
+        
+        @keyframes messageSlide {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .user-message {
+            text-align: right;
+        }
+        
+        .user-message .message-content {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
             color: white;
+            display: inline-block;
+            padding: 0.75rem 1rem;
+            border-radius: 1rem 1rem 0.25rem 1rem;
+            max-width: 80%;
+            word-wrap: break-word;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .assistant-message .message-content {
+            background: rgba(255, 255, 255, 0.9);
+            color: #0f172a;
+            display: inline-block;
+            padding: 0.75rem 1rem;
+            border-radius: 1rem 1rem 1rem 0.25rem;
+            max-width: 80%;
+            word-wrap: break-word;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(2, 6, 23, 0.08);
+        }
+        
+        .chat-input-container {
+            padding: 1rem;
+            border-top: 1px solid rgba(2, 6, 23, 0.08);
+            background: rgba(255, 255, 255, 0.6);
+        }
+        
+        .chat-input {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 1rem;
+            padding: 0.75rem 1rem;
+            color: #e2e8f0;
+            width: 100%;
+            resize: none;
+            min-height: 50px;
+            max-height: 120px;
+        }
+        
+        .chat-input::placeholder {
+            color: rgba(148, 163, 184, 0.6);
+        }
+        
+        .chat-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+        
+        .send-button {
+            position: absolute;
+            right: 1.25rem;
+            bottom: 1.25rem;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        
+        .send-button:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            transform: scale(1.05);
+        }
+        
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: rgba(148, 163, 184, 0.8);
+            font-style: italic;
+        }
+        
+        .typing-dots {
+            display: flex;
+            gap: 2px;
+        }
+        
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background: rgba(148, 163, 184, 0.8);
+            border-radius: 50%;
+            animation: typingPulse 1.4s infinite;
+        }
+        
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes typingPulse {
+            0%, 60%, 100% {
+                opacity: 0.3;
+                transform: scale(1);
+            }
+            30% {
+                opacity: 1;
+                transform: scale(1.2);
+            }
+        }
+        
+        .document-analysis-section {
+            height: calc(100vh - 2rem);
+            overflow-y: auto;
+        }
+        
+        /* Form Elements Dark Theme */
+        .dark-input {
+            /* background: rgba(255, 255, 255, 0.95); */
+            border: 1px solid rgba(2, 6, 23, 0.12);
+            color: #0f172a;
+        }
+        
+        .dark-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+        
+        .dark-select {
+            /* background: rgba(255, 255, 255, 0.95); */
+            border: 1px solid rgba(2, 6, 23, 0.12);
+            color: #0f172a;
+        }
+        
+        .dark-select option {
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+        
+        .dark-button {
+            background: linear-gradient(135deg, #475569 0%, #64748b 100%);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            color: #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        
+        .dark-button:hover {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 16px rgba(59, 130, 246, 0.3);
+        }
+        
+        /* Custom scrollbar */
+        .chat-messages::-webkit-scrollbar,
+        .document-analysis-section::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-track,
+        .document-analysis-section::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.3);
+            border-radius: 4px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-thumb,
+        .document-analysis-section::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.5);
+            border-radius: 4px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-thumb:hover,
+        .document-analysis-section::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.7);
+        }
+        
+        /* Translate indicator */
+        .translate-indicator {
+            position: fixed;
+            top: 5rem;
+            right: 1rem;
+            background: rgba(16, 185, 129, 0.9);
+            /* color: white; */
             padding: 0.5rem 1rem;
             border-radius: 0.5rem;
             font-size: 0.875rem;
-        }
-        .language-selector:focus {
-            outline: none;
-            border-color: rgba(255, 255, 255, 0.5);
-        }
-        .tab-button {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
+            font-weight: 500;
+            z-index: 999;
+            opacity: 0;
+            transform: translateY(-10px);
             transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
         }
-        .tab-button:hover, .tab-button.active {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: rgba(255, 255, 255, 0.4);
-        }
-        .card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
+        
+        .translate-indicator.show {
+            opacity: 1;
+            transform: translateY(0);
         }
     </style>
 </head>
-<body class="gradient-bg min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-        <!-- Header with Language Toggle -->
-        <div class="flex justify-between items-center mb-8">
-            <div class="text-center flex-1">
-                <h1 class="text-4xl font-bold text-white mb-2">
-                    <i class="fas fa-balance-scale mr-3"></i>
-                    <span data-lang="title">Legal Document Analyzer</span>
-                </h1>
-                <p class="text-white/80 text-lg" data-lang="subtitle">AI-Powered Document Analysis & Translation</p>
+<body class="light-gradient-bg min-h-screen text-slate-800">
+    <!-- Language Selector -->
+    <div class="language-selector">
+        <label for="pageLanguage">
+            <i class="fas fa-globe"></i>
+            Language:
+        </label>
+        <select id="pageLanguage" onchange="translatePage()">
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="zh">Chinese</option>
+            <option value="ja">Japanese</option>
+            <option value="ta">Tamil</option>
+            <option value="hi">Hindi</option>
+            <option value="ar">Arabic</option>
+            <option value="ru">Russian</option>
+            <option value="pt">Portuguese</option>
+        </select>
+    </div>
+    
+    <!-- Translation Indicator -->
+    <div id="translateIndicator" class="translate-indicator">
+        <i class="fas fa-check-circle mr-2"></i>
+        <span>Page translated successfully!</span>
+    </div>
+    
+    <div class="flex h-screen p-4 gap-4">
+        <!-- Left Side: Chat Interface -->
+        <div class="w-1/3 glass-effect rounded-xl chat-container">
+            <div class="p-4 border-b border-slate-600/30">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-robot text-2xl text-blue-400"></i>
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-100" data-translate="chat-title">Legal AI Assistant</h2>
+                        <p class="text-slate-400 text-sm" data-translate="chat-subtitle">Ask me anything about your documents</p>
+                    </div>
+                </div>
             </div>
-            <div class="ml-4">
-                <button id="languageToggle" class="tab-button">
-                    <i class="fas fa-language mr-2"></i>
-                    <span id="languageText">தமிழ்</span>
+            
+            <div class="chat-messages" id="chatMessages">
+                <div class="message assistant-message">
+                    <div class="message-content">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i class="fas fa-robot text-sm text-blue-400"></i>
+                            <span class="font-medium text-slate-200">Assistant</span>
+                        </div>
+                        <p data-translate="welcome-message">Hello! I'm your Legal AI Assistant. Upload a document on the right to get started, or ask me any questions about legal documents.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-input-container relative">
+                <textarea 
+                    id="chatInput" 
+                    class="chat-input pr-12" 
+                    placeholder="Ask me about legal documents..."
+                    data-translate-placeholder="chat-placeholder"
+                    rows="1"
+                ></textarea>
+                <button id="sendButton" class="send-button">
+                    <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
         </div>
-
-        <!-- Main Content -->
-        <div class="max-w-6xl mx-auto">
+        
+        <!-- Right Side: Document Analysis -->
+        <div class="flex-1 document-analysis-section">
+            <!-- Header -->
+            <div class="glass-effect rounded-xl p-6 mb-6">
+                <div class="text-center">
+                    <h1 class="text-4xl font-bold text-slate-100 mb-2">
+                        <i class="fas fa-balance-scale mr-3 text-blue-400"></i>
+                        <span data-translate="main-title">Legal Document Analyzer</span>
+                    </h1>
+                    <p class="text-slate-300 text-lg" data-translate="main-subtitle">AI-Powered Document Analysis & Translation</p>
+                </div>
+            </div>
+            
             <!-- Upload Section -->
             <div class="glass-effect rounded-xl p-6 mb-6">
-                <h2 class="text-2xl font-semibold text-white mb-4">
-                    <i class="fas fa-upload mr-2"></i>Upload Document
+                <h2 class="text-2xl font-semibold text-slate-100 mb-4">
+                    <i class="fas fa-upload mr-2 text-blue-400"></i>
+                    <span data-translate="upload-title">Upload Document</span>
                 </h2>
                 
                 <form id="uploadForm" class="space-y-4">
                     <div>
-                        <label class="block text-white/90 mb-2">Choose File</label>
+                        <label class="block text-slate-200 mb-2" data-translate="choose-file-label">Choose File</label>
                         <input type="file" id="fileInput" accept=".pdf,.txt,.doc,.docx" 
-                               class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50">
+                               class="w-full px-3 py-2 dark-input rounded-lg">
                     </div>
                     
                     <div class="grid md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-white/90 mb-2">Translate To (Optional)</label>
-                            <select id="translateSelect" class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white">
-                                <option value="">No Translation</option>
+                            <label class="block text-slate-200 mb-2" data-translate="translate-to-label">Translate To (Optional)</label>
+                            <select id="translateSelect" class="w-full px-3 py-2 dark-select rounded-lg">
+                                <option value="" data-translate="no-translation">No Translation</option>
                                 <option value="Spanish">Spanish</option>
                                 <option value="French">French</option>
                                 <option value="German">German</option>
                                 <option value="Chinese">Chinese</option>
                                 <option value="Japanese">Japanese</option>
+                                <option value="Tamil">Tamil</option>
+                                <option value="Hindi">Hindi</option>
+                                <option value="Arabic">Arabic</option>
+                                <option value="Russian">Russian</option>
+                                <option value="Portuguese">Portuguese</option>
                             </select>
                         </div>
                         
                         <div>
-                            <label class="block text-white/90 mb-2">Text-to-Speech Voice</label>
-                            <select id="voiceSelect" class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white">
-                                <option value="Kore">Tamil</option>
-                                <option value="Charon">Hindi</option>
-                                <option value="Fenrir">English</option>
-                                
+                            <label class="block text-slate-200 mb-2" data-translate="voice-label">Text-to-Speech Voice</label>
+                            <select id="voiceSelect" class="w-full px-3 py-2 dark-select rounded-lg">
+                                <option value="Kore">Korean (Kore)</option>
+                                <option value="Charon">Charon</option>
+                                <option value="Fenrir">Fenrir</option>
+                                <option value="Default">Default</option>
                             </select>
                         </div>
                     </div>
                     
                     <div class="flex items-center">
-                        <input type="checkbox" id="ttsCheckbox" class="mr-2">
-                        <label class="text-white/90">Enable Text-to-Speech</label>
+                        <input type="checkbox" id="ttsCheckbox" class="mr-2 accent-blue-500">
+                        <label class="text-slate-200" data-translate="tts-label">Enable Text-to-Speech</label>
+                    </div>
+
+                    <div class="flex items-center">
+                        <input type="checkbox" id="includeSummaryCheckbox" class="mr-2 accent-blue-500" checked>
+                        <label class="text-slate-200">Include AI Summary (may be slower)</label>
                     </div>
                     
-                    <button type="submit" class="w-full bg-white/20 hover:bg-white/30 text-white font-semibold py-3 px-4 rounded-lg transition duration-300">
-                        <i class="fas fa-analyze mr-2"></i>Analyze Document
+                    <button type="submit" class="w-full dark-button font-semibold py-3 px-4 rounded-lg">
+                        <i class="fas fa-analytics mr-2"></i>
+                        <span data-translate="analyze-button">Analyze Document</span>
                     </button>
                 </form>
             </div>
-
-            <!-- Loading State -->
+            
+            <!-- Loading Section -->
             <div id="loadingSection" class="hidden text-center py-8">
                 <div class="loading-spinner mx-auto mb-4"></div>
-                <p class="text-white text-lg">Analyzing your document...</p>
+                <p class="text-slate-200 text-lg" data-translate="analyzing-text">Analyzing your document...</p>
             </div>
-
+            
             <!-- Results Section -->
-            <div id="resultsSection" class="hidden">
-                <!-- Document Type -->
-                <div class="glass-effect rounded-xl p-6 mb-6">
-                    <h3 class="text-xl font-semibold text-white mb-3">
-                        <i class="fas fa-file-alt mr-2"></i>Document Type
+            <div id="resultsSection" class="hidden space-y-6">
+                <div class="glass-effect rounded-xl p-6">
+                    <h3 class="text-xl font-semibold text-slate-900 mb-3">
+                        <i class="fas fa-file-alt mr-2 text-blue-400"></i>
+                        <span data-translate="doc-type-title">Document Type</span>
                     </h3>
-                    <div id="docType" class="text-white/90 text-lg"></div>
-                    <div id="docSubtype" class="text-white/70 text-sm mt-1"></div>
-                    <div id="confidence" class="text-white/70 text-sm mt-1"></div>
+                    <div class="space-y-1">
+                        <div id="docType" class="text-slate-800 text-lg"></div>
+                        <div id="docSubtype" class="text-slate-600 text-sm"></div>
+                        <div id="confidence" class="text-slate-500 text-sm"></div>
+                    </div>
                 </div>
 
-                <!-- Entities -->
-                <div class="glass-effect rounded-xl p-6 mb-6">
-                    <h3 class="text-xl font-semibold text-white mb-3">
-                        <i class="fas fa-tags mr-2"></i>Extracted Entities
+                <div class="glass-effect rounded-xl p-6">
+                    <h3 class="text-xl font-semibold text-slate-900 mb-3">
+                        <i class="fas fa-tags mr-2 text-purple-400"></i>
+                        Entities
                     </h3>
-                    <div id="entities" class="text-white/90"></div>
+                    <div id="entities" class="text-slate-800"></div>
                 </div>
 
-                <!-- Clauses -->
-                <div class="glass-effect rounded-xl p-6 mb-6">
-                    <h3 class="text-xl font-semibold text-white mb-3">
-                        <i class="fas fa-list-ol mr-2"></i>Simplified Clauses
+                <div class="glass-effect rounded-xl p-6">
+                    <h3 class="text-xl font-semibold text-slate-900 mb-3">
+                        <i class="fas fa-list-ol mr-2 text-green-400"></i>
+                        Clauses
                     </h3>
-                    <div id="clauses" class="text-white/90 space-y-4"></div>
+                    <div id="clauses" class="text-slate-800"></div>
                 </div>
-
-                <!-- Summary -->
-                <div class="glass-effect rounded-xl p-6 mb-6">
-                    <h3 class="text-xl font-semibold text-white mb-3">
-                        <i class="fas fa-clipboard-list mr-2"></i>Summary
+                
+                <div class="glass-effect rounded-xl p-6">
+                    <h3 class="text-xl font-semibold text-slate-900 mb-3">
+                        <i class="fas fa-clipboard-list mr-2 text-blue-400"></i>
+                        <span data-translate="summary-title">Summary</span>
                     </h3>
-                    <p id="summary" class="text-white/90"></p>
+                    <p id="summary" class="text-slate-800"></p>
                 </div>
-
-                <!-- Key Points -->
-                <div class="glass-effect rounded-xl p-6 mb-6">
-                    <h3 class="text-xl font-semibold text-white mb-3">
-                        <i class="fas fa-key mr-2"></i>Key Points
+                
+                <div class="glass-effect rounded-xl p-6">
+                    <h3 class="text-xl font-semibold text-slate-900 mb-3">
+                        <i class="fas fa-key mr-2 text-blue-400"></i>
+                        <span data-translate="key-points-title">Key Points</span>
                     </h3>
-                    <ul id="keyPoints" class="text-white/90 space-y-2"></ul>
+                    <ul id="keyPoints" class="text-slate-800 space-y-2"></ul>
                 </div>
-
-                <!-- Risks -->
-                <div class="glass-effect rounded-xl p-6 mb-6">
-                    <h3 class="text-xl font-semibold text-white mb-3">
-                        <i class="fas fa-exclamation-triangle mr-2"></i>Risks
+                
+                <div class="glass-effect rounded-xl p-6">
+                    <h3 class="text-xl font-semibold text-slate-900 mb-3">
+                        <i class="fas fa-exclamation-triangle mr-2 text-yellow-400"></i>
+                        <span data-translate="risks-title">Risks</span>
                     </h3>
-                    <ul id="risks" class="text-white/90 space-y-2"></ul>
+                    <ul id="risks" class="text-slate-800 space-y-2"></ul>
                 </div>
-
-                <!-- Action Items -->
-                <div class="glass-effect rounded-xl p-6 mb-6">
-                    <h3 class="text-xl font-semibold text-white mb-3">
-                        <i class="fas fa-tasks mr-2"></i>Action Items
+                
+                <div class="glass-effect rounded-xl p-6">
+                    <h3 class="text-xl font-semibold text-slate-900 mb-3">
+                        <i class="fas fa-tasks mr-2 text-green-400"></i>
+                        <span data-translate="action-items-title">Action Items</span>
                     </h3>
-                    <ul id="actionItems" class="text-white/90 space-y-2"></ul>
+                    <ul id="actionItems" class="text-slate-800 space-y-2"></ul>
                 </div>
-
-                <!-- Translation -->
-                <div id="translationSection" class="glass-effect rounded-xl p-6 mb-6 hidden">
-                    <h3 class="text-xl font-semibold text-white mb-3">
-                        <i class="fas fa-language mr-2"></i>Translation
+                
+                <div id="translationSection" class="glass-effect rounded-xl p-6 hidden">
+                    <h3 class="text-xl font-semibold text-slate-900 mb-3">
+                        <i class="fas fa-language mr-2 text-purple-400"></i>
+                        <span data-translate="translation-title">Translation</span>
                     </h3>
-                    <p id="translation" class="text-white/90"></p>
+                    <p id="translation" class="text-slate-800"></p>
                 </div>
-
-                <!-- Audio Players -->
-                <div id="audioSection" class="glass-effect rounded-xl p-6 mb-6 hidden">
-                    <h3 class="text-xl font-semibold text-white mb-3">
-                        <i class="fas fa-volume-up mr-2"></i>Audio Narration
+                
+                <div id="audioSection" class="glass-effect rounded-xl p-6 hidden">
+                    <h3 class="text-xl font-semibold text-slate-900 mb-3">
+                        <i class="fas fa-volume-up mr-2 text-green-400"></i>
+                        <span data-translate="audio-title">Audio Summary</span>
                     </h3>
-                    <div id="audioPlayers" class="space-y-4"></div>
+                    <audio id="audioPlayer" controls class="w-full bg-slate-200 rounded-lg mb-4"></audio>
+                    <div id="audioPlayers"></div>
                 </div>
             </div>
-
+            
             <!-- Error Section -->
             <div id="errorSection" class="hidden">
-                <div class="bg-red-500/20 border border-red-500/50 rounded-xl p-6">
-                    <h3 class="text-xl font-semibold text-red-200 mb-3">
-                        <i class="fas fa-exclamation-circle mr-2"></i>Error
+                <div class="bg-red-900/30 border border-red-500/50 rounded-xl p-6">
+                    <h3 class="text-xl font-semibold text-red-300 mb-3">
+                        <i class="fas fa-exclamation-circle mr-2"></i>
+                        <span data-translate="error-title">Error</span>
                     </h3>
                     <p id="errorMessage" class="text-red-200"></p>
                 </div>
@@ -232,6 +574,518 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js"></script>
+    <script>
+        // Translation System
+        const translations = {
+            'en': {
+                'chat-title': 'Legal AI Assistant',
+                'chat-subtitle': 'Ask me anything about your documents',
+                'welcome-message': 'Hello! I\'m your Legal AI Assistant. Upload a document on the right to get started, or ask me any questions about legal documents.',
+                'chat-placeholder': 'Ask me about legal documents...',
+                'main-title': 'Legal Document Analyzer',
+                'main-subtitle': 'AI-Powered Document Analysis & Translation',
+                'upload-title': 'Upload Document',
+                'choose-file-label': 'Choose File',
+                'translate-to-label': 'Translate To (Optional)',
+                'no-translation': 'No Translation',
+                'voice-label': 'Text-to-Speech Voice',
+                'tts-label': 'Enable Text-to-Speech',
+                'analyze-button': 'Analyze Document',
+                'analyzing-text': 'Analyzing your document...',
+                'doc-type-title': 'Document Type',
+                'summary-title': 'Summary',
+                'key-points-title': 'Key Points',
+                'risks-title': 'Risks',
+                'action-items-title': 'Action Items',
+                'translation-title': 'Translation',
+                'audio-title': 'Audio Summary',
+                'error-title': 'Error'
+            },
+            'es': {
+                'chat-title': 'Asistente Legal IA',
+                'chat-subtitle': 'Pregúntame sobre tus documentos',
+                'welcome-message': '¡Hola! Soy tu Asistente Legal IA. Sube un documento a la derecha para comenzar, o hazme preguntas sobre documentos legales.',
+                'chat-placeholder': 'Pregúntame sobre documentos legales...',
+                'main-title': 'Analizador de Documentos Legales',
+                'main-subtitle': 'Análisis y Traducción de Documentos con IA',
+                'upload-title': 'Subir Documento',
+                'choose-file-label': 'Elegir Archivo',
+                'translate-to-label': 'Traducir A (Opcional)',
+                'no-translation': 'Sin Traducción',
+                'voice-label': 'Voz de Texto a Voz',
+                'tts-label': 'Habilitar Texto a Voz',
+                'analyze-button': 'Analizar Documento',
+                'analyzing-text': 'Analizando tu documento...',
+                'doc-type-title': 'Tipo de Documento',
+                'summary-title': 'Resumen',
+                'key-points-title': 'Puntos Clave',
+                'risks-title': 'Riesgos',
+                'action-items-title': 'Elementos de Acción',
+                'translation-title': 'Traducción',
+                'audio-title': 'Resumen de Audio',
+                'error-title': 'Error'
+            },
+            'ta': {
+                'chat-title': 'சட்ட AI உதவியாளர்',
+                'chat-subtitle': 'உங்கள் ஆவணங்களைப் பற்றி என்னிடம் கேளுங்கள்',
+                'welcome-message': 'வணக்கம்! நான் உங்கள் சட்ட AI உதவியாளர். தொடங்க வலதுபுறத்தில் ஒரு ஆவணத்தை பதிவேற்றவும், அல்லது சட்ட ஆவணங்களைப் பற்றி என்னிடம் கேள்விகள் கேளுங்கள்.',
+                'chat-placeholder': 'சட்ட ஆவணங்களைப் பற்றி என்னிடம் கேளுங்கள்...',
+                'main-title': 'சட்ட ஆவண பகுப்பாய்வாளர்',
+                'main-subtitle': 'AI-இயங்கும் ஆவண பகுப்பாய்வு மற்றும் மொழிபெயர்ப்பு',
+                'upload-title': 'ஆவணத்தைப் பதிவேற்றவும்',
+                'choose-file-label': 'கோப்பைத் தேர்ந்தெடுக்கவும்',
+                'translate-to-label': 'மொழிபெயர்க்க (விருப்பத்திற்கு)',
+                'no-translation': 'மொழிபெயர்ப்பு இல்லை',
+                'voice-label': 'உரையை குரலாக்க குரல்',
+                'tts-label': 'உரையை குரலாக்க இயக்கவும்',
+                'analyze-button': 'ஆவணத்தை பகுப்பாய்வு செய்யவும்',
+                'analyzing-text': 'உங்கள் ஆவணத்தை பகுப்பாய்வு செய்கிறது...',
+                'doc-type-title': 'ஆவண வகை',
+                'summary-title': 'சுருக்கம்',
+                'key-points-title': 'முக்கிய புள்ளிகள்',
+                'risks-title': 'அபாயங்கள்',
+                'action-items-title': 'செயல் உருப்படிகள்',
+                'translation-title': 'மொழிபெயர்ப்பு',
+                'audio-title': 'ஆடியோ சுருக்கம்',
+                'error-title': 'பிழை'
+            }
+        };
+        
+        let currentLanguage = 'en';
+        
+        function translatePage() {
+            const selectedLang = document.getElementById('pageLanguage').value;
+            if (selectedLang === currentLanguage) return;
+            
+            currentLanguage = selectedLang;
+            const langData = translations[selectedLang] || translations['en'];
+            
+            // Translate all elements with data-translate attribute
+            document.querySelectorAll('[data-translate]').forEach(element => {
+                const key = element.getAttribute('data-translate');
+                if (langData[key]) {
+                    element.textContent = langData[key];
+                }
+            });
+            
+            // Translate placeholders
+            document.querySelectorAll('[data-translate-placeholder]').forEach(element => {
+                const key = element.getAttribute('data-translate-placeholder');
+                if (langData[key]) {
+                    element.placeholder = langData[key];
+                }
+            });
+            
+            // Show translation indicator
+            const indicator = document.getElementById('translateIndicator');
+            indicator.classList.add('show');
+            setTimeout(() => {
+                indicator.classList.remove('show');
+            }, 2000);
+        }
+        
+        // Chat functionality
+        let currentAnalysisData = null;
+        
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const sendButton = document.getElementById('sendButton');
+        const uploadForm = document.getElementById('uploadForm');
+        
+        // Auto-resize textarea
+        chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+        
+        // Send message on Enter (but allow Shift+Enter for new lines)
+        chatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        sendButton.addEventListener('click', sendMessage);
+        
+        function sendMessage() {
+            const message = chatInput.value.trim();
+            if (!message) return;
+            
+            addMessage('user', message);
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+            
+            // Show typing indicator
+            showTypingIndicator();
+            
+            // Send to backend chatbot
+            handleUserQuery(message);
+        }
+        
+        function addMessage(sender, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            
+            if (sender === 'user') {
+                messageDiv.innerHTML = `
+                    <div class="message-content">
+                        <div class="flex items-center gap-2 mb-2 justify-end">
+                            <span class="font-medium text-slate-200">You</span>
+                            <i class="fas fa-user text-sm text-blue-400"></i>
+                        </div>
+                        <p>${content}</p>
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="message-content">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i class="fas fa-robot text-sm text-blue-400"></i>
+                            <span class="font-medium text-slate-200">Assistant</span>
+                        </div>
+                        <p>${content}</p>
+                    </div>
+                `;
+            }
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function showTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message assistant-message typing-indicator-message';
+            typingDiv.innerHTML = `
+                <div class="message-content">
+                    <div class="typing-indicator">
+                        <i class="fas fa-robot text-sm text-blue-400"></i>
+                        <span>Assistant is typing</span>
+                        <div class="typing-dots">
+                            <div class="typing-dot"></div>
+                            <div class="typing-dot"></div>
+                            <div class="typing-dot"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function hideTypingIndicator() {
+            const typingIndicator = chatMessages.querySelector('.typing-indicator-message');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+        
+        function handleUserQuery(query) {
+            // Send query to backend chatbot
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    query: query,
+                    analysis_data: currentAnalysisData
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideTypingIndicator();
+                if (data.response) {
+                    addMessage('assistant', data.response);
+                } else {
+                    addMessage('assistant', 'I apologize, but I encountered an error processing your request. Please try again.');
+                }
+            })
+            .catch(error => {
+                hideTypingIndicator();
+                console.error('Chat error:', error);
+                addMessage('assistant', 'I\'m having trouble connecting to the AI service. Please check your internet connection and try again.');
+            });
+        }
+        
+        // Document upload functionality
+        uploadForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                addMessage('assistant', 'Please select a file to analyze.');
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('loadingSection').classList.remove('hidden');
+            document.getElementById('resultsSection').classList.add('hidden');
+            document.getElementById('errorSection').classList.add('hidden');
+            
+            addMessage('assistant', `Analyzing your document: ${file.name}. This may take a moment...`);
+            
+            // Prepare form data
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const translateTo = document.getElementById('translateSelect').value;
+            const ttsEnabled = document.getElementById('ttsCheckbox').checked;
+            const ttsVoice = document.getElementById('voiceSelect').value;
+            
+            if (translateTo) formData.append('translate_to', translateTo);
+            if (ttsEnabled) formData.append('tts', 'true');
+            if (ttsVoice) formData.append('tts_voice', ttsVoice);
+            const includeSummary = document.getElementById('includeSummaryCheckbox').checked;
+            formData.append('include_summary', includeSummary ? 'true' : 'false');
+            
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                    const data = await response.json();
+                
+                if (response.ok) {
+                    currentAnalysisData = data;
+                    displayResults(data);
+                    
+                    addMessage('assistant', `Document analysis complete! I've identified this as a "${data.doc_type}" document. You can see the full analysis on the right, or ask me specific questions about it.`);
+                } else {
+                    throw new Error(data.detail || 'Analysis failed');
+                }
+            } catch (error) {
+                document.getElementById('errorSection').classList.remove('hidden');
+                document.getElementById('errorMessage').textContent = error.message;
+                
+                addMessage('assistant', `Sorry, I encountered an error while analyzing your document: ${error.message}`);
+            } finally {
+                document.getElementById('loadingSection').classList.add('hidden');
+            }
+        });
+        
+        function displayResults(data) {
+            document.getElementById('resultsSection').classList.remove('hidden');
+            
+            document.getElementById('docType').textContent = data.doc_type || 'Unknown';
+            if (document.getElementById('docSubtype')) {
+                document.getElementById('docSubtype').textContent = data.doc_subtype ? `Subtype: ${data.doc_subtype}` : '';
+            }
+            if (document.getElementById('confidence')) {
+                document.getElementById('confidence').textContent = (typeof data.confidence === 'number') ? `Confidence: ${(data.confidence * 100).toFixed(1)}%` : '';
+            }
+            
+            // Entities
+            if (data.entities) {
+                displayEntities(data.entities);
+            }
+            
+            // Clauses
+            if (data.clauses) {
+                displayClauses(data.clauses, data.clause_entities || {});
+            }
+            document.getElementById('summary').textContent = data.summary || 'No summary available';
+            
+            // Key points
+            const keyPointsList = document.getElementById('keyPoints');
+            keyPointsList.innerHTML = '';
+            if (data.key_points && data.key_points.length > 0) {
+                data.key_points.forEach(point => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<i class="fas fa-chevron-right mr-2 text-blue-400"></i>${point}`;
+                    keyPointsList.appendChild(li);
+                });
+            } else {
+                const li = document.createElement('li');
+                li.innerHTML = `<i class=\"fas fa-info-circle mr-2 text-slate-400\"></i>No key points identified`;
+                li.className = 'text-slate-400';
+                keyPointsList.appendChild(li);
+            }
+            
+            // Risks
+            const risksList = document.getElementById('risks');
+            risksList.innerHTML = '';
+            if (data.risks && data.risks.length > 0) {
+                data.risks.forEach(risk => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<i class=\"fas fa-exclamation-triangle mr-2 text-yellow-400\"></i>${risk}`;
+                    risksList.appendChild(li);
+                });
+            } else {
+                const li = document.createElement('li');
+                li.innerHTML = `<i class=\"fas fa-check-circle mr-2 text-green-400\"></i>No specific risks identified`;
+                li.className = 'text-green-300';
+                risksList.appendChild(li);
+            }
+            
+            // Action items
+            const actionItemsList = document.getElementById('actionItems');
+            actionItemsList.innerHTML = '';
+            if (data.action_items && data.action_items.length > 0) {
+                data.action_items.forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<i class=\"fas fa-check mr-2 text-green-400\"></i>${item}`;
+                    actionItemsList.appendChild(li);
+                });
+            } else {
+                const li = document.createElement('li');
+                li.innerHTML = `<i class=\"fas fa-info-circle mr-2 text-slate-400\"></i>No specific action items identified`;
+                li.className = 'text-slate-400';
+                actionItemsList.appendChild(li);
+            }
+            
+            // Translation
+            if (data.translation) {
+                document.getElementById('translationSection').classList.remove('hidden');
+                document.getElementById('translation').textContent = data.translation;
+            }
+            
+            // Audio
+            if (data.tts_paths && Object.keys(data.tts_paths).length > 0) {
+                document.getElementById('audioSection').classList.remove('hidden');
+                const audioPath = Object.values(data.tts_paths)[0]; // Get first audio file
+                document.getElementById('audioPlayer').src = audioPath;
+                displayAudioPlayers(data.tts_paths);
+            }
+        }
+
+        function displayEntities(entities) {
+            const entitiesContainer = document.getElementById('entities');
+            if (!entitiesContainer) return;
+            entitiesContainer.innerHTML = '';
+            
+            if (!entities || entities.length === 0) {
+                entitiesContainer.innerHTML = '<p class="text-gray-600">No entities found</p>';
+                return;
+            }
+            
+            const grouped = {};
+            entities.forEach(e => {
+                const type = e.type || 'Other';
+                if (!grouped[type]) grouped[type] = [];
+                grouped[type].push(e);
+            });
+            
+            Object.keys(grouped).forEach(type => {
+                const typeDiv = document.createElement('div');
+                typeDiv.className = 'mb-4';
+                typeDiv.innerHTML = `
+                    <h4 class="text-lg font-semibold text-gray-900 mb-2">${type} (${grouped[type].length})</h4>
+                    <div class="flex flex-wrap gap-2">
+                        ${grouped[type].map(ent => `<span class=\"bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm\">${ent.value}</span>`).join('')}
+                    </div>
+                `;
+                entitiesContainer.appendChild(typeDiv);
+            });
+        }
+
+        function displayClauses(clauses, clauseEntities) {
+            const clausesContainer = document.getElementById('clauses');
+            if (!clausesContainer) return;
+            clausesContainer.innerHTML = '';
+            
+            if (!clauses || clauses.length === 0) {
+                clausesContainer.innerHTML = '<p class="text-gray-600">No clauses found</p>';
+                return;
+            }
+            
+            clauses.forEach(c => {
+                const clauseDiv = document.createElement('div');
+                clauseDiv.className = 'border border-gray-200 bg-white rounded-lg p-4 mb-4';
+                
+                const header = document.createElement('h4');
+                header.className = 'text-lg font-semibold text-gray-900 mb-2';
+                header.textContent = `Clause ${c.clause_number}`;
+                clauseDiv.appendChild(header);
+                
+                const simplifiedDiv = document.createElement('div');
+                simplifiedDiv.className = 'mb-1';
+                simplifiedDiv.innerHTML = `<p class=\"text-gray-800 text-sm\">${c.simplified_text || '(not available)'}</p>`;
+                clauseDiv.appendChild(simplifiedDiv);
+                
+                const key = String(c.clause_number);
+                const ents = clauseEntities && clauseEntities[key] ? clauseEntities[key] : clauseEntities && clauseEntities[c.clause_number];
+                if (ents && ents.length > 0) {
+                    const entsDiv = document.createElement('div');
+                    entsDiv.className = 'mt-2';
+                    entsDiv.innerHTML = `
+                        <h6 class="text-xs font-semibold text-gray-700 mb-1">Entities:</h6>
+                        <div class="flex flex-wrap gap-1">
+                            ${ents.map(e => `<span class=\"bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs\">${e.value}</span>`).join('')}
+                        </div>
+                    `;
+                    clauseDiv.appendChild(entsDiv);
+                }
+                
+                clausesContainer.appendChild(clauseDiv);
+            });
+        }
+
+        function displayAudioPlayers(ttsPaths) {
+            const audioPlayersContainer = document.getElementById('audioPlayers');
+            if (!audioPlayersContainer) return;
+            audioPlayersContainer.innerHTML = '';
+            
+            Object.keys(ttsPaths).forEach(key => {
+                const div = document.createElement('div');
+                div.className = 'mb-4';
+                const label = key === 'summary' ? 'Document Summary' : `Clause ${key}`;
+                div.innerHTML = `
+                    <label class=\"block text-white/80 mb-2 text-sm font-semibold\">${label}</label>
+                    <audio controls class=\"w-full\" src=\"${ttsPaths[key]}\"></audio>
+                `;
+                audioPlayersContainer.appendChild(div);
+            });
+        }
+        
+        // Utility function to safely get nested object properties
+        function safeGet(obj, path, defaultValue = null) {
+            return path.split('.').reduce((current, key) => {
+                return current && current[key] !== undefined ? current[key] : defaultValue;
+            }, obj);
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Legal Document Analyzer with Chat Interface loaded');
+            
+            // Focus on chat input
+            chatInput.focus();
+            
+            // Add some example interactions for demo
+            setTimeout(() => {
+                addMessage('assistant', 'You can try uploading a PDF, Word document, or text file. I can analyze contracts, agreements, legal notices, and many other document types.');
+            }, 1000);
+        });
+        
+        // Handle window resize to maintain chat layout
+        window.addEventListener('resize', function() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        });
+        
+        // Add smooth scrolling for results
+        function smoothScrollToResults() {
+            document.getElementById('resultsSection').scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+        
+        // Enhanced error handling
+        window.addEventListener('error', function(e) {
+            console.error('Global error:', e.error);
+            // Could add user notification here if needed
+        });
+        
+        // Prevent form submission on Enter in chat
+        document.addEventListener('keydown', function(e) {
+            if (e.target.id === 'chatInput' && e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+            }
+        });
+    </script>
 </body>
 </html>

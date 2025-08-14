@@ -24,11 +24,11 @@ class GeminiAnalyzer:
     # Rate limiting configuration
     MAX_TOKENS_PER_REQUEST = 30000  # Conservative limit
     CHUNK_SIZE = 3000  # Characters per chunk
-    RATE_LIMIT_DELAY = 2.0  # Slightly more aggressive spacing for faster runs
-    MAX_RETRIES = 2
-    JITTER_MIN = 0.5
-    JITTER_MAX = 1.5
-    MAX_CONCURRENT = 2  # Allow limited parallel requests
+    RATE_LIMIT_DELAY = 0.5  # Reduced delay to speed up requests
+    MAX_RETRIES = 3 # Increased retries for robustness
+    JITTER_MIN = 0.1
+    JITTER_MAX = 0.5
+    MAX_CONCURRENT = 5  # Allow more parallel requests
 
     # Global concurrency limit for outbound Gemini calls
     _concurrency = asyncio.Semaphore(MAX_CONCURRENT)
@@ -148,12 +148,13 @@ class GeminiAnalyzer:
             chunks = GeminiAnalyzer._chunk_text(doc_text)
             logger.info(f"Split document into {len(chunks)} chunks")
             
-            # Analyze each chunk
-            chunk_results = []
+            # Analyze each chunk concurrently
+            tasks = []
             for i, chunk in enumerate(chunks):
-                logger.info(f"Analyzing chunk {i+1}/{len(chunks)}")
-                result = await GeminiAnalyzer._analyze_chunk(chunk, language)
-                chunk_results.append(result)
+                logger.info(f"Creating task for chunk {i+1}/{len(chunks)}")
+                tasks.append(GeminiAnalyzer._analyze_chunk(chunk, language))
+            
+            chunk_results = await asyncio.gather(*tasks)
             
             # Combine results
             combined_summary = " ".join([r.get("summary", "") for r in chunk_results])

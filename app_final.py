@@ -14,6 +14,7 @@ load_dotenv()
 from utils.document_processor import DocumentProcessor
 from utils.gemini_utils_optimized import GeminiAnalyzer
 from utils.tts_utils import EnhancedTTS
+from utils.gemini_chatbot import ChatbotHandler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -58,9 +59,25 @@ class AnalyzeResponse(BaseModel):
     translation: Optional[str] = None
     error: Optional[str] = None
 
+
+class ChatRequest(BaseModel):
+    query: str
+    analysis_data: Optional[Dict[str, Any]] = None
+
+
+class ChatResponse(BaseModel):
+    response: str
+    status: str = "success"
+
+
+# Initialize global chatbot instance
+chatbot = ChatbotHandler()
+
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(
@@ -68,18 +85,27 @@ async def analyze(
     translate_to: Optional[str] = Form(None),
     tts: Optional[bool] = Form(False),
     tts_voice: Optional[str] = Form("kore"),
-    language: Optional[str] = Form("english")
+    language: Optional[str] = Form("english"),
+    include_summary: Optional[bool] = Form(True),
 ):
     try:
         data = await file.read()
         
+        # Extract once to reuse and avoid duplication
+        extracted_text = await DocumentProcessor._extract_text(data, file.filename)
+
+        # Normalize voice
+        if isinstance(tts_voice, str):
+            tts_voice = tts_voice.lower()
+
         # Process document with enhanced features
         result = await DocumentProcessor.process_document(
             file_bytes=data,
             filename=file.filename,
             language=language,
             generate_tts=tts,
-            tts_voice=tts_voice
+            tts_voice=tts_voice,
+            pre_extracted_text=extracted_text,
         )
         
         # Check for errors
@@ -87,15 +113,22 @@ async def analyze(
             raise HTTPException(status_code=400, detail=result["error"])
         
         # Get additional analysis from Gemini if needed
-        text = await DocumentProcessor._extract_text(data, file.filename)
-        text = text[:10000] if text and len(text) > 10000 else text
-        gemini_analysis = await GeminiAnalyzer.analyze_document(text, language)
+        summary = None
+        key_points = None
+        risks = None
+        action_items = None
+        if include_summary:
+            gemini_analysis = await GeminiAnalyzer.analyze_document(extracted_text, language)
+            summary = gemini_analysis.get("summary")
+            key_points = gemini_analysis.get("key_points")
+            risks = gemini_analysis.get("risks")
+            action_items = gemini_analysis.get("action_items")
         
         # Handle translation
         translation = None
-        if translate_to:
+        if translate_to and include_summary:
             translation = await GeminiAnalyzer.translate_text(
-                gemini_analysis.get("summary", "") + "\n" + "\n".join(gemini_analysis.get("key_points", [])),
+                (summary or "") + "\n" + "\n".join(key_points or []),
                 translate_to
             )
         
@@ -108,15 +141,32 @@ async def analyze(
             clause_entities=result["clause_entities"],
             tts_paths=result["tts_paths"],
             metadata=result["metadata"],
-            summary=gemini_analysis.get("summary"),
-            key_points=gemini_analysis.get("key_points"),
-            risks=gemini_analysis.get("risks"),
-            action_items=gemini_analysis.get("action_items"),
+            summary=summary,
+            key_points=key_points,
+            risks=risks,
+            action_items=action_items,
             translation=translation
         )
     except Exception as e:
         logger.error(f"Analysis error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat_endpoint(request: ChatRequest):
+    """Handle chat queries using Gemini Flash 1.5"""
+    try:
+        response = await chatbot.get_response(
+            user_query=request.query,
+            analysis_data=request.analysis_data
+        )
+        return ChatResponse(response=response, status="success")
+    except Exception as e:
+        logger.error(f"Chat endpoint error: {e}")
+        return ChatResponse(
+            response="I apologize, but I'm having trouble processing your request right now. Please try again later.",
+            status="error"
+        )
+
 
 @app.post("/tts")
 async def tts_endpoint(
@@ -134,6 +184,7 @@ async def tts_endpoint(
         logger.error(f"TTS error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.get("/voices")
 async def get_available_voices():
     """Get available TTS voices."""
@@ -144,22 +195,75 @@ async def get_available_voices():
         logger.error(f"Error getting voices: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/analyze-clauses")
 async def analyze_clauses(
-    clauses: List[Dict[str, str]],
+    clause_text: str = Form(...),
     language: Optional[str] = Form("english")
 ):
     """Analyze specific clauses with detailed breakdown."""
     try:
-        result = await DocumentProcessor.analyze_clause_specific(clauses, language)
+        result = await DocumentProcessor.analyze_clause_specific(clause_text, language)
         return result
     except Exception as e:
         logger.error(f"Clause analysis error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+## (Removed duplicate /chat endpoint above)
+
+
+@app.post("/chat/clear")
+async def clear_chat_history():
+    """Clear the chat history"""
+    try:
+        chatbot.clear_chat_history()
+        return {"message": "Chat history cleared", "status": "success"}
+    except Exception as e:
+        logger.error(f"Error clearing chat history: {e}")
+        return {"message": f"Error clearing history: {e}", "status": "error"}
+
+
+@app.get("/chat/history")
+async def get_chat_history():
+    """Get the current chat history"""
+    try:
+        history = chatbot.get_chat_history()
+        return {"history": history, "status": "success"}
+    except Exception as e:
+        logger.error(f"Error getting chat history: {e}")
+        return {"history": [], "status": "error", "message": str(e)}
+
+
+@app.get("/chat/status")
+async def get_chatbot_status():
+    """Get chatbot status and configuration"""
+    try:
+        status = chatbot.get_status()
+        return {"chatbot": status, "status": "success"}
+    except Exception as e:
+        logger.error(f"Error getting chatbot status: {e}")
+        return {"chatbot": {"status": "error"}, "status": "error", "message": str(e)}
+
+
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "message": "Optimized Legal Document Analyzer is running!"}
+    """Health check endpoint with chatbot status"""
+    try:
+        chatbot_status = chatbot.get_status()
+        return {
+            "status": "healthy",
+            "message": "Legal Document Analyzer is running!",
+            "chatbot": chatbot_status
+        }
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+        return {
+            "status": "healthy",
+            "message": "Legal Document Analyzer is running!",
+            "chatbot": {"status": "error", "error": str(e)}
+        }
+
 
 if __name__ == "__main__":
     import uvicorn
