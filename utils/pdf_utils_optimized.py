@@ -127,7 +127,7 @@ class PDFProcessor:
         import re
         
         # Pattern 1: Numbered clauses (1., 2., etc.)
-        numbered_pattern = r'^\s*(\d+)\.\s*(.+?)(?=^\s*\d+\.|$)'
+        numbered_pattern = r'^\s*(\d+)\.\s*(.+)(?=^\s*\d+\.|\s*[IVX]+\.|\s*[a-z]\.|\Z)'
         numbered_matches = re.findall(numbered_pattern, text, re.MULTILINE | re.DOTALL)
         
         for match in numbered_matches:
@@ -140,7 +140,7 @@ class PDFProcessor:
                 })
         
         # Pattern 2: Roman numeral clauses (I., II., etc.)
-        roman_pattern = r'^\s*([IVX]+)\.\s*(.+?)(?=^\s*[IVX]+\.|$)'
+        roman_pattern = r'^\s*([IVX]+)\.\s*(.+)(?=^\s*\d+\.|\s*[IVX]+\.|\s*[a-z]\.|\Z)'
         roman_matches = re.findall(roman_pattern, text, re.MULTILINE | re.DOTALL)
         
         for i, match in enumerate(roman_matches, start=len(clauses) + 1):
@@ -152,7 +152,7 @@ class PDFProcessor:
                 })
         
         # Pattern 3: Lettered clauses (a., b., etc.)
-        letter_pattern = r'^\s*([a-z])\.\s*(.+?)(?=^\s*[a-z]\.|$)'
+        letter_pattern = r'^\s*([a-z])\.\s*(.+)(?=^\s*\d+\.|\s*[IVX]+\.|\s*[a-z]\.|\Z)'
         letter_matches = re.findall(letter_pattern, text, re.MULTILINE | re.DOTALL)
         
         for i, match in enumerate(letter_matches, start=len(clauses) + 1):
@@ -174,7 +174,52 @@ class PDFProcessor:
                         'original_text': para
                     })
         
-        # Sort by clause number
-        clauses.sort(key=lambda x: x['clause_number'])
-        
-        return clauses
+        # If we captured very long blocks that contain many short lines (bullet lists),
+        # split them into sub-clauses to ensure one idea per clause
+        refined: List[Dict[str, str]] = []
+
+        def combine_short_lines(shorts: List[str]) -> List[str]:
+            """Combine consecutive short lines into full sentences based on punctuation."""
+            sentences: List[str] = []
+            buf = ""
+            for ln in shorts:
+                if not ln or not ln.strip():
+                    continue
+                ln = ln.strip()
+                # Handle hyphenated breaks at end of line
+                if ln.endswith("-"):
+                    buf += ln[:-1]
+                    continue
+                # Add with a space if buffer already has content
+                buf = (buf + (" " if buf else "") + ln).strip()
+                # If line ends a sentence or clause, flush
+                if re.search(r"[\.;!?:]\s*$", ln) or (re.search(r"\b(and|or|but|nor|yet|so)\b$", ln, re.IGNORECASE) and len(buf.split()) > 5): # heuristic for conjunctive breaks
+                    if len(buf) >= 20:
+                        sentences.append(buf.strip())
+                    buf = ""
+            if buf and len(buf) >= 20:
+                sentences.append(buf.strip())
+            return sentences
+        for entry in clauses:
+            raw = entry.get('original_text', '').strip()
+            if not raw:
+                continue
+            lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
+            
+            # Prioritize merging short lines based on actual sentence breaks rather than arbitrary length limits
+            # Also, explicitly handle common introductory phrases for clauses that might be on a separate line
+            combined_sentences = combine_short_lines(lines)
+
+            if combined_sentences:
+                for sent in combined_sentences:
+                    # Filter out very short or non-substantive lines that might still slip through
+                    if len(sent) > 30 and not re.match(r'^(clause\s*\d+\b|section\s*\d+\b|article\s*\d+\b|schedule\s*\d+\b|exhibit\s*\d+\b|appendix\s*\d+\b|heading|subheading|title)\.?\s*$', sent, re.IGNORECASE):
+                        refined.append({'clause_number': 0, 'original_text': sent})
+            elif len(raw) > 50: # If no sentences were combined, but the raw text is substantial, add it as a single clause
+                refined.append({'clause_number': 0, 'original_text': raw})
+
+        # Re-index sequentially to avoid duplicate numbering (e.g., multiple "2." entries)
+        for i, item in enumerate(refined, start=1):
+            item['clause_number'] = i
+
+        return refined

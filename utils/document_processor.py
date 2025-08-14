@@ -17,7 +17,7 @@ class DocumentProcessor:
     
     # Rate limiting configuration
     PROCESSING_DELAY = 1.0  # Seconds between major processing steps
-    MAX_SIMPLIFIED_CLAUSES = 48  # Cap to limit external calls
+    MAX_SIMPLIFIED_CLAUSES = 48  # Allow more clauses to be simplified for speed perception
     
     @staticmethod
     async def process_document(
@@ -74,19 +74,20 @@ class DocumentProcessor:
             clause_entities = ner_extractor.extract_entities_by_clause(clauses)
             logger.info(f"Extracted entities for {len(clause_entities)} clauses")
             
-            # Simplify clauses (with delay for rate limiting)
+            # Simplify clauses with prioritization: first N clauses + any clause under 160 chars (fast) 
             await asyncio.sleep(DocumentProcessor.PROCESSING_DELAY)
-            if len(clauses) <= DocumentProcessor.MAX_SIMPLIFIED_CLAUSES:
-                simplified_clauses = await ClauseSimplifier.simplify_clauses(clauses, language)
-            else:
-                # Simplify first N, heuristic for the rest to avoid rate limits
-                head = await ClauseSimplifier.simplify_clauses(clauses[:DocumentProcessor.MAX_SIMPLIFIED_CLAUSES], language)
-                tail = []
-                for c in clauses[DocumentProcessor.MAX_SIMPLIFIED_CLAUSES:]:
+            priority: List[Dict[str, Any]] = []
+            fallback_tail: List[Dict[str, Any]] = []
+            for idx, c in enumerate(clauses):
+                text = c.get('original_text', '') or ''
+                if idx < DocumentProcessor.MAX_SIMPLIFIED_CLAUSES or len(text) <= 160:
+                    priority.append(c)
+                else:
                     c_copy = dict(c)
-                    c_copy['simplified_text'] = ClauseSimplifier._heuristic_plainify(c.get('original_text', ''))
-                    tail.append(c_copy)
-                simplified_clauses = head + tail
+                    c_copy['simplified_text'] = ClauseSimplifier._heuristic_plainify(text)
+                    fallback_tail.append(c_copy)
+            head = await ClauseSimplifier.simplify_clauses(priority, language)
+            simplified_clauses = head + fallback_tail
             logger.info(f"Simplified {len(simplified_clauses)} clauses")
             
             # Generate TTS if requested

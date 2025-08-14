@@ -356,21 +356,11 @@ function displayClauses(clauses, clauseEntities) {
         clauseHeader.textContent = `Clause ${clause.clause_number}`;
         clauseDiv.appendChild(clauseHeader);
         
-        // Original text
-        const originalDiv = document.createElement('div');
-        originalDiv.className = 'mb-3';
-        originalDiv.innerHTML = `
-            <h5 class="text-sm font-semibold text-white/80 mb-1">Original Text:</h5>
-            <p class="text-white/70 text-sm">${clause.original_text}</p>
-        `;
-        clauseDiv.appendChild(originalDiv);
-        
-        // Simplified text
+        // Simplified text only (hide original as requested)
         const simplifiedDiv = document.createElement('div');
-        simplifiedDiv.className = 'mb-3';
+        simplifiedDiv.className = 'mb-1';
         simplifiedDiv.innerHTML = `
-            <h5 class="text-sm font-semibold text-white/80 mb-1">Simplified Text:</h5>
-            <p class="text-white/90 text-sm">${clause.simplified_text}</p>
+            <p class="text-white/90 text-sm">${clause.simplified_text || '(not available)'}</p>
         `;
         clauseDiv.appendChild(simplifiedDiv);
         

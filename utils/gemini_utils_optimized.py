@@ -15,7 +15,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-GEMINI_TEXT_MODEL = "gemini-2.0-flash-lite"
+GEMINI_TEXT_MODEL = "gemini-2.5-flash"
 GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts"
 
 class GeminiAnalyzer:
@@ -24,14 +24,14 @@ class GeminiAnalyzer:
     # Rate limiting configuration
     MAX_TOKENS_PER_REQUEST = 30000  # Conservative limit
     CHUNK_SIZE = 3000  # Characters per chunk
-    RATE_LIMIT_DELAY = 3.5  # Seconds between requests
+    RATE_LIMIT_DELAY = 2.0  # Slightly more aggressive spacing for faster runs
     MAX_RETRIES = 2
     JITTER_MIN = 0.5
     JITTER_MAX = 1.5
+    MAX_CONCURRENT = 2  # Allow limited parallel requests
 
-    # Global serialization of outbound Gemini calls
-    _request_lock = asyncio.Lock()
-    _last_call_ts: float = 0.0
+    # Global concurrency limit for outbound Gemini calls
+    _concurrency = asyncio.Semaphore(MAX_CONCURRENT)
     
     @staticmethod
     def _chunk_text(text: str, chunk_size: int = 3000) -> list:
@@ -66,17 +66,11 @@ class GeminiAnalyzer:
         """Make a rate-limited request with global serialization, jitter, and retry."""
         last_error: Exception | None = None
         for attempt in range(GeminiAnalyzer.MAX_RETRIES):
-            async with GeminiAnalyzer._request_lock:
-                # Enforce spacing since last call with jitter
-                now = time.monotonic()
-                elapsed = now - GeminiAnalyzer._last_call_ts
-                base_delay = GeminiAnalyzer.RATE_LIMIT_DELAY + random.uniform(GeminiAnalyzer.JITTER_MIN, GeminiAnalyzer.JITTER_MAX)
-                if elapsed < base_delay:
-                    await asyncio.sleep(base_delay - elapsed)
+            async with GeminiAnalyzer._concurrency:
+                # Add spacing + jitter before call to reduce collisions
+                await asyncio.sleep(GeminiAnalyzer.RATE_LIMIT_DELAY + random.uniform(GeminiAnalyzer.JITTER_MIN, GeminiAnalyzer.JITTER_MAX))
                 try:
-                    result = await func(*args, **kwargs)
-                    GeminiAnalyzer._last_call_ts = time.monotonic()
-                    return result
+                    return await func(*args, **kwargs)
                 except Exception as e:
                     last_error = e
                     if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):

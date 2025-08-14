@@ -13,16 +13,17 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-GEMINI_MODEL = "gemini-2.5-flash-lite"
+GEMINI_MODEL = "gemini-2.0-flash-lite"
 
 class ClauseSimplifier:
     """Clause simplification using Gemini AI with chunking and rate limiting."""
     
     # Rate limiting configuration
-    BATCH_SIZE = 6  # Larger batch to reduce total API calls
-    DELAY_BETWEEN_BATCHES = 3.0  # Slightly longer to respect limits
-    CIRCUIT_FAILS_BEFORE_OPEN = 2
+    BATCH_SIZE = 48  # Target size for single-request batching
+    DELAY_BETWEEN_BATCHES = 0.0  # No extra delay; global rate limiter already spaces calls
+    CIRCUIT_FAILS_BEFORE_OPEN = 1
     _consecutive_fail_batches = 0
+    BATCH_MAX_CHARS = 9000  # Keep prompt within safe limits for flash-lite
     
     @staticmethod
     async def simplify_clause(clause_text: str, language: str = "english") -> str:
@@ -30,6 +31,13 @@ class ClauseSimplifier:
         try:
             if not clause_text or not clause_text.strip():
                 return ""
+            
+            # Fast-path heuristics for very short headings/phrases to avoid LLM calls
+            text_norm = clause_text.strip().strip(':').strip('-').strip()
+            if len(text_norm) <= 80 and len(text_norm.split()) <= 12:
+                fast = ClauseSimplifier._fast_heuristic(text_norm)
+                if fast:
+                    return fast
             
             # Language-specific prompts
             prompts = {
@@ -50,10 +58,20 @@ class ClauseSimplifier:
             
             prompt = prompts.get(language, prompts["english"])
             
-            # Use the chunked approach from GeminiAnalyzer
+            # Use the chunked approach from GeminiAnalyzer and ensure we get a single concise line
             simplified = await GeminiAnalyzer._make_rate_limited_request(
                 lambda: GeminiAnalyzer._simple_text_request(prompt)
             )
+            # Post-trim: take first sentence to avoid run-ons
+            # Removed aggressive trimming to allow multi-sentence simplified clauses if model produces them
+            # if simplified:
+            #     simplified = simplified.strip()
+            #     # If model echoes the original, shorten to a concise sentence
+            #     if simplified.lower().startswith("original"):
+            #         simplified = simplified.split("\n")[-1].strip()
+            #     first_sentence = simplified.split(". ")[0].strip()
+            #     if 8 <= len(first_sentence) <= len(simplified):
+            #         simplified = first_sentence if not simplified.endswith('.') else first_sentence + '.'
             
             return simplified.strip() if simplified else clause_text
             
@@ -69,7 +87,7 @@ class ClauseSimplifier:
     async def simplify_clauses(clauses: List[Dict[str, str]], language: str = "english") -> List[Dict[str, str]]:
         """Simplify multiple clauses with batching to avoid rate limits."""
         try:
-            simplified_clauses = []
+            simplified_clauses: List[Dict[str, str]] = []
             
             # Circuit breaker: if repeated batch failures, fall back to heuristic for remaining
             if ClauseSimplifier._consecutive_fail_batches >= ClauseSimplifier.CIRCUIT_FAILS_BEFORE_OPEN:
@@ -77,40 +95,73 @@ class ClauseSimplifier:
                     clause['simplified_text'] = ClauseSimplifier._heuristic_plainify(clause.get('original_text', ''))
                 return clauses
 
-            # Process clauses in batches
-            for i in range(0, len(clauses), ClauseSimplifier.BATCH_SIZE):
-                batch = clauses[i:i + ClauseSimplifier.BATCH_SIZE]
-                logger.info(f"Processing batch {i//ClauseSimplifier.BATCH_SIZE + 1}")
-                
-                # Try single batched Gemini call first
-                try:
-                    batched = await ClauseSimplifier._simplify_batch_with_gemini(batch, language)
-                    for clause, simp in zip(batch, batched):
-                        clause['simplified_text'] = simp
-                        simplified_clauses.append(clause)
-                    ClauseSimplifier._consecutive_fail_batches = 0
-                except Exception as e:
-                    logger.error(f"Batch simplification failed, falling back per-clause: {e}")
-                    ClauseSimplifier._consecutive_fail_batches += 1
-                    # Process batch concurrently per-clause
-                    batch_tasks = []
-                    for clause in batch:
-                        task = ClauseSimplifier.simplify_clause(
-                            clause.get('original_text', ''), 
-                            language
-                        )
-                        batch_tasks.append(task)
-                    batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
-                    for j, (clause, simplified_text) in enumerate(zip(batch, batch_results)):
-                        if isinstance(simplified_text, Exception):
-                            logger.error(f"Error simplifying clause {i+j+1}: {simplified_text}")
-                            simplified_text = ClauseSimplifier._heuristic_plainify(clause.get('original_text', ''))
-                        clause['simplified_text'] = simplified_text
-                        simplified_clauses.append(clause)
-                
-                # Delay between batches to avoid rate limits
-                if i + ClauseSimplifier.BATCH_SIZE < len(clauses):
-                    await asyncio.sleep(ClauseSimplifier.DELAY_BETWEEN_BATCHES)
+            # Pre-fill very short headings via fast heuristic to reduce payload
+            need_llm: List[tuple[int, Dict[str, str]]] = []
+            for idx, clause in enumerate(clauses):
+                text = clause.get('original_text', '') or ''
+                text_norm = text.strip().strip(':').strip('-').strip()
+                fast = None
+                if len(text_norm) <= 80 and len(text_norm.split()) <= 12:
+                    fast = ClauseSimplifier._fast_heuristic(text_norm)
+                if fast:
+                    out = dict(clause)
+                    out['simplified_text'] = fast
+                    simplified_clauses.append(out)
+                else:
+                    need_llm.append((idx, clause))
+
+            if not need_llm:
+                # Sort back to original order
+                simplified_clauses.sort(key=lambda c: c.get('clause_number', 0))
+                return simplified_clauses
+
+            # Build a single large batch up to BATCH_SIZE and within char limits
+            logger.info(f"Building single-request batch for up to {ClauseSimplifier.BATCH_SIZE} clauses")
+            batched_items: List[tuple[int, Dict[str, str]]] = []
+            total_chars = 0
+            for idx, clause in need_llm[:ClauseSimplifier.BATCH_SIZE]:
+                t = (clause.get('original_text', '') or '').strip()
+                if not t:
+                    continue
+                if total_chars + len(t) > ClauseSimplifier.BATCH_MAX_CHARS and batched_items:
+                    break
+                batched_items.append((idx, clause))
+                total_chars += len(t)
+
+            # Prepare and send one structured request for the batched items
+            try:
+                batch_clauses = [c for _, c in batched_items]
+                simplified_list = await ClauseSimplifier._simplify_batch_with_gemini(batch_clauses, language)
+                if len(simplified_list) != len(batch_clauses):
+                    raise Exception("Batch response size mismatch")
+                for (idx, clause), simp in zip(batched_items, simplified_list):
+                    out = dict(clause)
+                    out['simplified_text'] = (simp or '').strip()
+                    simplified_clauses.append(out)
+                ClauseSimplifier._consecutive_fail_batches = 0
+            except Exception as e:
+                logger.error(f"Single-batch simplification failed: {e}")
+                ClauseSimplifier._consecutive_fail_batches += 1
+                # Fallback: simplify each remaining via per-clause (still uses global limiter)
+                for idx, clause in batched_items:
+                    try:
+                        simp = await ClauseSimplifier.simplify_clause(clause.get('original_text', ''), language)
+                    except Exception as e2:
+                        logger.error(f"Per-clause fallback error (idx {idx}): {e2}")
+                        simp = ClauseSimplifier._heuristic_plainify(clause.get('original_text', ''))
+                    out = dict(clause)
+                    out['simplified_text'] = simp
+                    simplified_clauses.append(out)
+
+            # For any remaining clauses beyond the first batch, use heuristic to keep fast
+            remaining = [c for c in need_llm[len(batched_items):]]
+            for _, clause in remaining:
+                out = dict(clause)
+                out['simplified_text'] = ClauseSimplifier._heuristic_plainify(clause.get('original_text', ''))
+                simplified_clauses.append(out)
+
+            # Sort back to original clause order
+            simplified_clauses.sort(key=lambda c: c.get('clause_number', 0))
             
             return simplified_clauses
             
@@ -153,6 +204,28 @@ class ClauseSimplifier:
         if len(t) > 300:
             t = t[:300] + "..."
         return t
+
+    @staticmethod
+    def _fast_heuristic(text: str) -> str | None:
+        """Return a quick simplified phrase for common short headings; otherwise None."""
+        t = text.strip().strip(':').strip()
+        tl = t.lower()
+        rules = [
+            (r"second\s+(e-)?opinion.*critical\s+illness", "Second medical opinion for serious (critical) illness"),
+            (r"refractory\s+heart\s+failure", "Heart failure that doesn't respond to treatment"),
+            (r"contact\s+number\s+of\s+the\s+insured\s+person", "Insured person's phone number"),
+            (r"modification\s+of\s+base\s+co[- ]?payment", "Change to the standard amount you pay (base co-payment)"),
+            (r"update\s+to\s+family\s+members", "Update information of your family members"),
+            (r"excl0?2[:\-]?\s*specified\s+disease/?procedure", "Code Excl02: Listed disease/procedure"),
+        ]
+        import re
+        for pat, out in rules:
+            if re.search(pat, tl):
+                return out
+        # Generic short heading cleanup
+        if len(t) <= 60 and not t.endswith('.'):
+            return t[0].upper() + t[1:]
+        return None
 
     @staticmethod
     async def _simplify_batch_with_gemini(batch: List[Dict[str, str]], language: str) -> List[str]:

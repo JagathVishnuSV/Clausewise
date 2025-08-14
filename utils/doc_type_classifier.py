@@ -103,7 +103,11 @@ Classification:""",
             "Service Agreement": ["service", "vendor", "client", "deliverables", "scope"],
             "Purchase Agreement": ["purchase", "buy", "seller", "buyer", "payment"],
             "License": ["license", "permission", "rights", "intellectual property"],
-            "Partnership": ["partner", "partnership", "joint venture", "collaboration"]
+            "Partnership": ["partner", "partnership", "joint venture", "collaboration"],
+            "Divorce Petition": ["divorce", "petition", "matrimonial", "dissolution", "marriage", "cruelty", "adultery", "custody"],
+            "Will": ["will", "testament", "executor", "beneficiary", "estate", "bequeath"],
+            "Loan Agreement": ["loan", "borrower", "lender", "interest", "repayment", "credit"],
+            "Power of Attorney": ["power of attorney", "attorney-in-fact", "principal", "agent", "legal representative"]
         }
         
         scores = {}
@@ -113,10 +117,13 @@ Classification:""",
         
         if scores:
             best_type = max(scores, key=scores.get)
-            confidence = min(scores[best_type] / 3.0, 1.0)  # Normalize confidence
+            # Adjust confidence calculation: higher score for more matches, relative to max possible keywords
+            max_keywords = max(len(keywords) for keywords in doc_types.values()) # Get max possible keywords for normalization
+            confidence = min(scores[best_type] / max_keywords, 1.0) if max_keywords > 0 else 0.0
+            
             return {
                 "doc_type": best_type,
-                "subtype": "General",
+                "subtype": "General", # Subtype can be refined with more advanced classification later
                 "confidence": confidence
             }
         else:
